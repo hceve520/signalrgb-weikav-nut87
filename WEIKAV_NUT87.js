@@ -1,7 +1,8 @@
 export function Name() { return "WEIKAV NUT87"; }
-export function Version() { return "1.0.0"; }
+export function Version() { return "1.1.0"; }
 export function VendorId() { return 0x0C45; }
-export function ProductId() { return 0x880C; }
+// 0x880C = wired, 0xFEF9 = 2.4G dongle
+export function ProductId() { return [0x880C, 0xFEF9]; }
 export function Publisher() { return "hceve520"; }
 export function Documentation() { return ""; }
 export function Type() { return "Hid"; }
@@ -14,9 +15,15 @@ export function ConflictingProcesses() {
 	return ["Music.exe", "musicplug.exe"];
 }
 
+/**
+ * Control interface is MI_03 / usage 0x61 on both transports; only the usage
+ * page differs:
+ *   wired  0x880C -> 0xFF68
+ *   2.4G   0xFEF9 -> 0xFF60   (verified on hardware)
+ */
 export function Validate(endpoint) {
-	// Control interface: MI_03, usage page 0xFF68, usage 0x61.
-	return endpoint.usage_page === 0xFF68 && endpoint.usage === 0x0061;
+	return endpoint.usage === 0x0061
+		&& (endpoint.usage_page === 0xFF68 || endpoint.usage_page === 0xFF60);
 }
 
 /* global
@@ -87,7 +94,11 @@ export class NUT87_Device_Protocol {
 	constructor() {
 		this.Config = {
 			DeviceName: "WEIKAV NUT87",
-			DeviceEndpoint: [{ interface: 3, usage: 0x0061, usage_page: 0xFF68, collection: 0x0000 }],
+			DeviceEndpoint: {
+				usage: 0x0061,
+				usage_pages: [0xFF68, 0xFF60],
+				collection: 0x0000,
+			},
 		};
 		this.writeLength = 65;
 		this.lastKeepAlive = 0;
@@ -125,19 +136,20 @@ export class NUT87_Device_Protocol {
 
 	detectEndpoint() {
 		/* eslint-disable no-undef */
-		const wanted = this.Config.DeviceEndpoint[0];
+		const wanted = this.Config.DeviceEndpoint;
 		for (const current of device.getHidEndpoints()) {
 			if (
-				current.usage_page === wanted.usage_page &&
 				current.usage === wanted.usage &&
-				current.collection === wanted.collection
+				wanted.usage_pages.includes(current.usage_page) &&
+				(current.collection === wanted.collection || wanted.collection === undefined)
 			) {
+				this.usagePage = current.usage_page;
 				device.set_endpoint(current.interface, current.usage, current.usage_page, current.collection);
 				device.log(`Using endpoint interface ${current.interface} (usage page 0x${current.usage_page.toString(16)})`);
 				return;
 			}
 		}
-		device.log("NUT87 control endpoint not found, falling back to interface 3");
+		device.log("NUT87 control endpoint not found, falling back to interface 3 / 0xFF68");
 		device.set_endpoint(3, 0x0061, 0xFF68, 0x0000);
 		/* eslint-enable no-undef */
 	}
@@ -264,6 +276,16 @@ export class NUT87_Device_Protocol {
 	Render() {
 		const now = Date.now();
 
+		// 2.4G: the dongle goes silent when the keyboard sleeps, and every
+		// write is then dropped without an error. Re-send the mode periodically
+		// so the first packet after a wake re-initialises the link.
+		if (now - this.lastKeepAlive > 3000) {
+			this.lastKeepAlive = now;
+			this.lastMode = this.forced() ? 1 : 128;
+			this.sendEffect(this.lastMode, this.forced() ? hexToRgb(forcedColor) : [255, 255, 255], 6, 3, 1);
+			this.lastForcedRgb = this.forced() ? hexToRgb(forcedColor).join(",") : "";
+		}
+
 		if (this.forced()) {
 			// A single colour: mode 1 "static" is both simpler and brighter
 			// than the realtime overlay - it is full 8-bit (verified on
@@ -280,12 +302,6 @@ export class NUT87_Device_Protocol {
 		}
 
 		// Canvas: the stored table is the base layer, streamed frames overlay it.
-		if (this.lastMode !== 128 || now - this.lastKeepAlive > 3000) {
-			this.lastKeepAlive = now;
-			this.lastMode = 128;
-			this.sendEffect(128, [255, 255, 255], 6, 3, 1);
-		}
-
 		const colors = this.grabColors();
 		if (this.realtime) {
 			this.sendRealtime(colors);

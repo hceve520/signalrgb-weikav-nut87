@@ -41,6 +41,21 @@ https://srgbmods.net/s?p=addon/install?url=https://github.com/hceve520/signalrgb
 | Name | VID | PID | Interface | Usage Page | LEDs |
 | --- | --- | --- | --- | --- | --- |
 | WEIKAV NUT87 (wired) | `0x0C45` | `0x880C` | MI_03 | `0xFF68` / `0x61` | 87 |
+| WEIKAV NUT87 (2.4G dongle) | `0x0C45` | `0xFEF9` | MI_03 | `0xFF60` / `0x61` | 87 |
+
+Both transports speak the same protocol; only the PID and the control
+interface's usage page change, so the plugin matches either one.
+
+> **2.4G notes**
+> * The dongle is silent while the keyboard sleeps — writes are dropped without
+>   an error. The plugin re-sends the mode every 3 s, so the first packet after
+>   a keypress re-initialises the link.
+> * Press a key once after switching to 2.4G (or after the keyboard sleeps) if
+>   lighting looks frozen.
+> * The vendor's web driver needs a fresh WebHID permission prompt for the 2.4G
+>   PID, so it appears as "no device" until you re-authorise it. This plugin does
+>   not use WebHID and is unaffected.
+
 
 ## Settings
 
