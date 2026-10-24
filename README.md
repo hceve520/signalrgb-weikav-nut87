@@ -1,8 +1,9 @@
 # SignalRGB WEIKAV NUT87 Plugin
 
-SignalRGB HID plugin for the **WEIKAV NUT87** keyboard (Sonix `0C45:880C`) —
-full per-key canvas lighting at up to **250+ fps**, reverse-engineered from the
-vendor's own `Music.exe` instead of relying on the official web driver.
+SignalRGB HID plugin for the **WEIKAV NUT87** keyboard (Sonix) — full per-key
+canvas lighting at up to **250+ fps**, reverse-engineered from the vendor's own
+`Music.exe` instead of relying on the official web driver. Works over **USB** and
+the **2.4G dongle**.
 
 [![Add To SignalRGB](https://marketplace.signalrgb.com/resources/add-extension-256.png "Add to My SignalRGB Installation")](https://srgbmods.net/s?p=addon/install?url=https://github.com/hceve520/signalrgb-weikav-nut87)
 
@@ -55,7 +56,7 @@ interface's usage page change, so the plugin matches either one.
 > * The vendor's web driver needs a fresh WebHID permission prompt for the 2.4G
 >   PID, so it appears as "no device" until you re-authorise it. This plugin does
 >   not use WebHID and is unaffected.
-
+> * Measured 59.5 fps sustained at 60 fps requested over the dongle.
 
 ## Settings
 
@@ -63,7 +64,7 @@ interface's usage page change, so the plugin matches either one.
 | --- | --- | --- |
 | `Lighting Mode` | Canvas | `Canvas` follows the effect, `Forced` uses one colour |
 | `Forced Color` | `#009bde` | Colour used when Lighting Mode = Forced |
-| `Shutdown Mode` | **Hardware** | `Hardware` hands the keyboard back to its firmware, `SignalRGB` applies the shutdown colour |
+| `Shutdown Mode` | **Hardware** | `Hardware` hands the keyboard back to its firmware (built-in rainbow), `SignalRGB` applies the shutdown colour |
 | `Shutdown Color` | `#000000` | Only used when Shutdown Mode = SignalRGB (sleep always goes dark) |
 | `Data Channel` | Realtime | `Realtime` = command `0x32`; `Stored table` = command `0x24` fallback (~2 fps) |
 
@@ -75,9 +76,11 @@ a firmware property — the vendor's own visualiser has the same limit.
 ## Requirements
 
 - Windows + [SignalRGB](https://www.signalrgb.com/)
-- Keyboard connected **wired** (the vendor disables all drivers in Bluetooth mode)
+- Keyboard connected over **USB** or the **2.4G dongle**. Bluetooth mode is not
+  supported — the vendor disables all drivers there
 - Do **not** run the official web driver or `Music.exe` at the same time — they
   fight for the same HID interface and the transfers corrupt each other
+  (the plugin declares this via `ConflictingProcesses()`)
 
 ## Protocol reference
 
@@ -89,12 +92,17 @@ a firmware property — the vendor's own visualiser has the same limit.
 | `0x23` | SET_LED_EFFECT | mode `1` = static (uses colour), `128` = custom (stored table) |
 | `0x24` | SET_CUSTOM_LED_DATA | 512 B table, ~40 ms/packet |
 | `0x32` | real-time frame | the fast path, see above |
-| `0x33` | GET_ALL_LIGHTS_RGB | 512 B live read-back |
+| `0x33` | GET_ALL_LIGHTS_RGB | 512 B live read-back (USB) |
+| `0x37` | GET_ALL_LIGHTS_RGB_24G | 512 B read-back, 4-byte header (2.4G) |
 
 Everything was recovered from the web driver bundle
 (`https://weikav.driveall.cn/assets/layout-classic-*.js`) and from static
 analysis of `musicplug.exe` (`CHFDMusicDlg::UpdateMusicEffect` at VA `0x409537`),
-then verified on real hardware.
+then verified on real hardware over both transports.
+
+Note: 2.4G differs from USB only in the *read* commands (4-byte header,
+`0x37`/`0x3B`) and the identifiers in the Supported table. All writes used by
+this plugin (`0x23`, `0x24`, `0x32`) are identical.
 
 ## License
 

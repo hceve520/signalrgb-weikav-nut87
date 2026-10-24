@@ -361,7 +361,8 @@ export class NUT87_Device_Protocol {
  */
 const HARDWARE_MODE = 9;
 
-const NUT87_LAYOUT = {	ledIds: [
+const NUT87_LAYOUT = {
+	ledIds: [
 		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 99, 100, 102,
 		16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 92, 103, 104, 105,
 		32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 60, 106, 107, 108,
