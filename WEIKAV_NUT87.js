@@ -2,7 +2,7 @@ export function Name() { return "WEIKAV NUT87"; }
 export function Version() { return "1.0.0"; }
 export function VendorId() { return 0x0C45; }
 export function ProductId() { return 0x880C; }
-export function Publisher() { return "nut87-re"; }
+export function Publisher() { return "hceve520"; }
 export function Documentation() { return ""; }
 export function Type() { return "Hid"; }
 export function DeviceType() { return "keyboard"; }
